@@ -1,59 +1,122 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-struct Stack {
-	int size;
-	struct List {
-		int item;
-		struct List* next;
-	} *head;
+#define Error( Str )        FatalError( Str )
+#define FatalError( Str )   fprintf( stderr, "%s\n", Str ), exit( 1 )
+
+typedef struct Node* PtrToNode;
+typedef PtrToNode Stack;
+typedef PtrToNode Position;
+typedef int ElementType;
+
+struct Node
+{
+	Position Next;
+	ElementType Element;
 };
-typedef struct Stack* slink;
 
-slink create_stack(void) {
-	slink stack = malloc(sizeof(struct Stack));
-	if (!stack)
-		return stack;
-	stack->size = 0;
-	stack->head = NULL;
-	return stack;
+//判断栈是否为空，空栈：表头指向NULL
+int IsEmpty(Stack S)
+{
+	return S->Next == NULL;
 }
 
-int empty(slink stack) {
-	return stack->size == 0;
+//返回栈顶元素的值
+ElementType Top(Stack S)
+{
+	if (IsEmpty(S))
+		Error("Empty stack");
+	else
+		return S->Next->Element;
 }
 
-void push_stack(slink stack, int item) {
-	struct List* new = malloc(sizeof(struct List));
-	if (!new)
-		return;
-	new->item = item;
-	new->next = stack->head;
-	stack->head = new;
-	stack->size++;
+//Pop函数
+void Pop(Stack S)
+{
+	Position P, TmpCell;
+
+	TmpCell = S->Next;
+	S->Next = TmpCell->Next;
+	free(TmpCell);
 }
 
-int pop_stack(slink stack) {
-	if (empty(stack))
-		return -1;
-	struct List* torm = stack->head;
-	int retval = stack->head->item;
-	stack->head = stack->head->next;
-	free(torm);
-	stack->size--;
-	return retval;
+//Push函数
+void Push(ElementType X, Stack S)
+{
+	Position TmpCell;
+
+	TmpCell = malloc(sizeof(struct Node));
+	if (TmpCell == NULL)
+		FatalError("Out of space!!");
+	TmpCell->Next = S->Next;
+	TmpCell->Element = X;
+	S->Next = TmpCell;
 }
 
-int main() {
-	slink stack = create_stack();
-	int data[] = { 1,2,3,4,5,6,7,8,9 };
-	int i = 0;
-	while (i < 6)
-		push_stack(stack, data[i++]);
-	while (!empty(stack))
-		printf("%d\n", pop_stack(stack));
-	while (i < 9)
-		push_stack(stack, data[i++]);
-	while (!empty(stack))
-		printf("%d\n", pop_stack(stack));
+//删除栈中元素
+void DeleteStack(Stack S)
+{
+	Position P, TmpCell;
+
+	P = S->Next;
+	S->Next = NULL;
+	while (P != NULL)
+	{
+		TmpCell = P->Next;
+		free(P);
+		P = TmpCell;
+	}
+}
+
+//生成空栈
+Stack MakeEmpty(Stack S)
+{
+	if (S != NULL)
+	{
+		DeleteStack(S);
+	}
+	S = malloc(sizeof(struct Node));
+	if (S == NULL)
+		FatalError("Out of space!!");
+	S->Next = NULL;
+	return S;
+}
+
+
+//打印栈
+void PrintStack(Stack S)
+{
+	Position P;
+
+	P = S->Next;
+	if (P != NULL)
+	{
+		printf("栈顶元素的值：%d\n", P->Element);
+		P = P->Next;
+	}
+	while (P != NULL)
+	{
+		printf("值：%d, 下一个元素的位置：%p\n", P->Element, P->Next);
+		P = P->Next;
+	}
+}
+
+int main()
+{ 
+	ElementType A[] = { 6, 2, 1, 5, 8 };
+	Stack S = NULL;
+	int length = sizeof(A) / sizeof(ElementType);
+	S = MakeEmpty(S);
+	for (int i = 0; i < length; i++)
+	{
+		Push(A[i], S);
+	}
+	PrintStack(S);
+	Pop(S);
+	PrintStack(S);
+	DeleteStack(S);
+	printf("是否是空栈（1：是，0：不是）：%d\n", IsEmpty(S));
+	if (S != NULL)
+		free(S);
+	return 0;
 }
