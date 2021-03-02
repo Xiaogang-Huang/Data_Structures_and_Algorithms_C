@@ -272,7 +272,6 @@ void DeleteGraph(Graph* G)
 int main()
 
 {
-
 	Graph* G;
 	int size = 6;
 	int i, N;
