@@ -8,14 +8,25 @@
 #define NotAVertex (-1)
 #define Infinity INT_MAX
 #define MinPQSize 3
-#define MinData (-32767)
 
-struct QueueRecord {
-	int Capacity; //队列的最大容量
-	int Front;  //队首的位置
-	int Rear;  //队尾的位置
+struct HeapStruct {
+	int Capacity;
 	int Size;
-	ElementType* Array;
+	int* Position; //可以根据元素的值找到堆中的位置
+	ElementType* HeapPos; //元素在堆中的位置
+};
+
+struct TableEntry {
+	int Known;
+	DistType Dist;
+	ElementType Path;
+};
+
+struct KruskalTableEntry {
+	int Known;
+	DistType Dist;
+	ElementType Point1;
+	ElementType Point2;
 };
 
 struct Adjacent {
@@ -36,92 +47,177 @@ struct Graph {
 	int EdgeNum;
 };
 
-struct TableEntry {
-	AdjacentList Header;
-	int Known;
-	DistType Dist;
-	ElementType Path;
-};
-
-int IsEmpty(Queue Q)
+//优先队列
+int IsFullPriorityQueue(PriorityQueue H)
 {
-	return Q->Size == 0;
+	return H->Size == H->Capacity;
 }
 
-int IsFull(Queue Q)
+int IsEmptyPriorityQueue(PriorityQueue H)
 {
-	return Q->Size == Q->Capacity;
+	return H->Size == 0;
 }
 
-void MakeEmpty(Queue Q)
+PriorityQueue Initialize(int MaxElements)
 {
-	Q->Size = 0;
-	Q->Front = 1;
-	Q->Rear = 0;
-}
+	PriorityQueue H;
 
-Queue CreateQueue(int MaxElements)
-{
-	Queue Q;
+	if (MaxElements < MinPQSize)
+		Error("Priority queue size is too small!!!");
 
-	Q = malloc(sizeof(struct QueueRecord));
-	if (Q == NULL)
+	H = malloc(sizeof(struct HeapStruct));
+	if (H == NULL)
 		FatalError("Out of space!!!");
 
-	Q->Array = malloc(MaxElements * sizeof(ElementType));
-	if (Q->Array == NULL)
+	H->Position = calloc(MaxElements + 1, sizeof(int));
+	if (H->Position == NULL)
 		FatalError("Out of space!!!");
 
-	Q->Capacity = MaxElements;
-	MakeEmpty(Q);
+	H->HeapPos = calloc(MaxElements + 1, sizeof(ElementType));
+	if (H->HeapPos == NULL)
+		FatalError("Out of space!!!");
 
-	return Q;
+	H->Capacity = MaxElements;
+	H->Size = 0;
+	H->Size = 0;
+
+	return H;
 }
 
-void DisposeQueue(Queue Q)
+void PriorityQueueInsert(Table T, ElementType Y, PriorityQueue H)
 {
-	if (Q != NULL)
+	int i;
+
+	if (IsFullPriorityQueue(H))
 	{
-		free(Q->Array);
-		free(Q);
+		Error("Priority queue size is full!!!");
+		return;
 	}
+	//从堆尾向前查找元素插入的位置
+	for (i = ++H->Size; T[H->HeapPos[i / 2]].Dist > T[Y].Dist; i /= 2)
+	{
+		H->HeapPos[i] = H->HeapPos[i / 2];
+		H->Position[H->HeapPos[i]] = i;
+	}
+	
+	H->HeapPos[i] = Y;
+	H->Position[Y] = i;
 }
 
-static int Succ(int Value, Queue Q)
+void PriorityQueueInsertK(KruskalTable T, ElementType Y, PriorityQueue H)
 {
-	if (++Value == Q->Capacity)
+	int i;
+
+	if (IsFullPriorityQueue(H))
 	{
-		Value = 0;
+		Error("Priority queue size is full!!!");
+		return;
 	}
-	return Value;
+	//从堆尾向前查找元素插入的位置
+	for (i = ++H->Size; i / 2 != 0 && T[H->HeapPos[i / 2]].Dist > T[Y].Dist; i /= 2)
+	{
+		H->HeapPos[i] = H->HeapPos[i / 2];
+		H->Position[H->HeapPos[i]] = i;
+	}
+
+	H->HeapPos[i] = Y;
+	H->Position[Y] = i;
 }
 
-void Enqueue(ElementType X, Queue Q)
+void PriorityQueueDecreaseKey(Table T, ElementType Y, PriorityQueue H)
 {
-	if (IsFull(Q))
-		Error("Full queue");
-	else
+	int i = 1, j;
+
+	i = H->Position[Y];
+	for (j = i; T[H->HeapPos[j / 2]].Dist > T[Y].Dist; j /= 2)
 	{
-		Q->Size++;
-		Q->Rear = Succ(Q->Rear, Q);
-		Q->Array[Q->Rear] = X;
+		H->HeapPos[j] = H->HeapPos[j / 2];
+		H->Position[H->HeapPos[j]] = j;
 	}
+	H->HeapPos[j] = Y;
+	H->Position[Y] = j;
 }
 
-ElementType Dequeue(Queue Q)
+ElementType DeleteMin(Table T, PriorityQueue H)
 {
-	ElementType Result;
-	if (IsEmpty(Q))
-		Error("Empty queue");
-	else
+	int i, Child, LastPosition;
+	DistType LastDist;
+	ElementType MinElement, LastElement;
+
+	if (IsEmptyPriorityQueue(H))
 	{
-		Q->Size--;
-		Result = Q->Array[Q->Front];
-		Q->Front = Succ(Q->Front, Q);
+		Error("Priority queue is empty!!!");
+		return H->HeapPos[1];
 	}
-	return Result;
+	MinElement = H->HeapPos[1];
+	LastElement = H->HeapPos[H->Size];
+	LastDist = T[LastElement].Dist;
+	LastPosition = H->Position[LastElement];
+	H->Size--;
+
+	for (i = 1; i * 2 <= H->Size; i = Child)
+	{
+		Child = i * 2;
+		if (Child != H->Size && T[H->HeapPos[Child + 1]].Dist < T[H->HeapPos[Child]].Dist)
+			Child++;
+		if (LastDist > T[H->HeapPos[Child]].Dist)
+		{
+			H->HeapPos[i] = H->HeapPos[Child];
+			H->Position[H->HeapPos[i]] = i;
+		}
+		else
+			break;
+	}
+	
+	H->HeapPos[i] = LastElement;
+	H->Position[LastElement] = i;
+	return MinElement;
 }
 
+ElementType DeleteMinK(KruskalTable T, PriorityQueue H)
+{
+	int i, Child, LastPosition;
+	DistType LastDist;
+	ElementType MinElement, LastElement;
+
+	if (IsEmptyPriorityQueue(H))
+	{
+		Error("Priority queue is empty!!!");
+		return H->HeapPos[1];
+	}
+	MinElement = H->HeapPos[1];
+	LastElement = H->HeapPos[H->Size];
+	LastDist = T[LastElement].Dist;
+	LastPosition = H->Position[LastElement];
+	H->Size--;
+
+	for (i = 1; i * 2 <= H->Size; i = Child)
+	{
+		Child = i * 2;
+		if (Child != H->Size && T[H->HeapPos[Child + 1]].Dist < T[H->HeapPos[Child]].Dist)
+			Child++;
+		if (LastDist > T[H->HeapPos[Child]].Dist)
+		{
+			H->HeapPos[i] = H->HeapPos[Child];
+			H->Position[H->HeapPos[i]] = i;
+		}
+		else
+			break;
+	}
+
+	H->HeapPos[i] = LastElement;
+	H->Position[LastElement] = i;
+	return MinElement;
+}
+
+void Destroy(PriorityQueue H)
+{
+	free(H->HeapPos);
+	free(H->Position);
+	free(H);
+}
+
+//图
 PtrToGraph CreateGraph(int Size)
 {
 	PtrToGraph G;
@@ -207,7 +303,7 @@ void DeleteGraph(PtrToGraph G)
 	free(G);
 }
 
-//表格初始化
+//表格
 Table InitTable(ElementType X, PtrToGraph G)
 {
 	Table T;
@@ -229,242 +325,93 @@ Table InitTable(ElementType X, PtrToGraph G)
 	return T;
 }
 
-//广度优先搜索
-void Unweighted(ElementType X, Table T, PtrToGraph G)
+void PrintTable(Table T, int Size)
 {
-	Queue Q;
-	ElementType V;
-	AdjacentList Tmp;
-
-	X--;
-	Q = CreateQueue(G->VertexNum); MakeEmpty(Q);
-	Enqueue(X, Q);
-
-	while (!IsEmpty(Q))
+	printf("Known Dist  Path\n");
+	for (int i = 0; i < Size; i++)
 	{
-		V = Dequeue(Q);
-		T[V].Known = 1;
+		printf("%6d%5.2f%4d\n", T[i].Known, T[i].Dist, T[i].Path);
+	}
+}
 
-		Tmp = G->AdjGraph[V].Adjacent;
+KruskalTable InitKruskalTable(PtrToGraph G)
+{
+	KruskalTable T;
+	AdjacentList Tmp;
+	int X = 0, C = -1;
+
+	T = calloc((G->EdgeNum) / 2, sizeof(struct KruskalTableEntry));
+	if (T == NULL)
+	{
+		Error("out of space!!!");
+		return NULL;
+	}
+	for (int i = 0; i < G->VertexNum; i++)
+	{
+		Tmp = G->AdjGraph[i].Adjacent;
 		while (Tmp != NULL)
 		{
-			if (T[Tmp->Element].Dist == Infinity)
+			if (Tmp->Element > i)
 			{
-				T[Tmp->Element].Dist = T[V].Dist + 1;
-				T[Tmp->Element].Path = V + 1;
-				Enqueue(Tmp->Element, Q);
+				C++;
+				T[C].Dist = Tmp->Weight;
+				T[C].Point1 = i;
+				T[C].Point2 = Tmp->Element;
 			}
 			Tmp = Tmp->Next;
 		}
 	}
-	DisposeQueue(Q);
+	return T;
 }
 
-//Dijkstra算法(可以用优先队列优化)
-void Dijkstra(ElementType X, Table T, PtrToGraph G)
+void PrintKruskalTable(KruskalTable T, int Size)
 {
-	ElementType V;
-	AdjacentList Tmp;
-	DistType Tmpdist;
-	int i;
-
-	X--;
-	for (;;)
+	printf("Known Point1 Point2   Path\n");
+	for (int i = 0; i < Size; i++)
 	{
-		Tmpdist = Infinity;
-		V = NotAVertex;
-		for (i = 0; i < G->VertexNum; i++)
-			if (T[i].Dist < Tmpdist && T[i].Known == 0)
-			{
-				V = i;
-				Tmpdist = T[i].Dist;
-			}
-		if (V == NotAVertex)
-			break;
-		T[V].Known = 1;
-		Tmp = G->AdjGraph[V].Adjacent;
-		while (Tmp != NULL)
-		{
-			if (T[Tmp->Element].Known == 0)
-			{
-				if (T[V].Dist + Tmp->Weight < T[Tmp->Element].Dist)
-				{
-					T[Tmp->Element].Dist = T[V].Dist + Tmp->Weight;
-					T[Tmp->Element].Path = V + 1;
-				}
-			}
-			Tmp = Tmp->Next;
-		}
+		printf("%5d %6d %6d %5.2f\n", T[i].Known, T[i].Point1, T[i].Point2, T[i].Dist);
 	}
 }
 
-//Dijkstra算法_优先队列优化
-struct HeapNode {
-	ElementType Elements;
-	DistType Dist;
-	int Position;
-};
-
-struct HeapStruct {
-	int Capacity;
-	int Size;
-	struct HeapNode* PtrToNode;
-};
-
-typedef struct HeapStruct* PriorityQueue;
-
-int IsFullPriorityQueue(PriorityQueue H)
-{
-	return H->Size == H->Capacity;
-}
-
-int IsEmptyPriorityQueue(PriorityQueue H)
-{
-	return H->Size == 0;
-}
-
-PriorityQueue Initialize(int MaxElements)
-{
-	PriorityQueue H;
-
-	if (MaxElements < MinPQSize)
-		Error("Priority queue size is too small!!!");
-
-	H = malloc(sizeof(struct HeapStruct));
-	if (H == NULL)
-		FatalError("Out of space!!!");
-
-	H->PtrToNode = calloc(MaxElements + 1, sizeof(struct HeapNode));
-	if (H->PtrToNode == NULL)
-		FatalError("Out of space!!!");
-
-	H->Capacity = MaxElements;
-	H->Size = 0;
-	H->PtrToNode[0].Elements = MinData;
-	H->PtrToNode[0].Dist = MinData;
-
-	return H;
-}
-
-void PriorityQueueInsert(DistType X, ElementType Y, PriorityQueue H)
-{
-	int i;
-
-	if (IsFullPriorityQueue(H))
-	{
-		Error("Priority queue size is full!!!");
-		return;
-	}
-	//从堆尾向前查找元素插入的位置
-	for (i = ++H->Size; H->PtrToNode[i / 2].Dist > X; i /= 2)
-	{
-		H->PtrToNode[i].Dist = H->PtrToNode[i / 2].Dist;
-		H->PtrToNode[i].Elements = H->PtrToNode[i / 2].Elements;
-		H->PtrToNode[H->PtrToNode[i / 2].Elements].Position = i;
-	}
-	H->PtrToNode[i].Dist = X;
-	H->PtrToNode[i].Elements = Y;
-	H->PtrToNode[Y].Position = i;
-}
-
-void PriorityQueueDecreaseKey(ElementType Y, DistType NewX, PriorityQueue H)
-{
-	int i = 1, j;
-
-	i = H->PtrToNode[Y].Position;
-	for (j = i; H->PtrToNode[j / 2].Dist > NewX; j /= 2)
-	{
-		H->PtrToNode[j].Dist = H->PtrToNode[j / 2].Dist;
-		H->PtrToNode[j].Elements = H->PtrToNode[j / 2].Elements;
-		H->PtrToNode[H->PtrToNode[j / 2].Elements].Position = j;
-	}
-	H->PtrToNode[j].Dist = NewX;
-	H->PtrToNode[j].Elements = Y;
-	H->PtrToNode[Y].Position = i;
-}
-
-ElementType DeleteMin(PriorityQueue H)
-{
-	int i, Child, LastPosition;
-	DistType LastDist;
-	ElementType MinElement, LastElement;
-
-	if (IsEmptyPriorityQueue(H))
-	{
-		Error("Priority queue is empty!!!");
-		return H->PtrToNode[0].Elements;
-	}
-	MinElement = H->PtrToNode[1].Elements;
-	LastDist = H->PtrToNode[H->Size].Dist;
-	LastElement = H->PtrToNode[H->Size].Elements;
-	LastPosition = H->PtrToNode[LastElement].Position;
-	H->Size--;
-
-	for (i = 1; i * 2 <= H->Size; i = Child)
-	{
-		Child = i * 2;
-		if (Child != H->Size && H->PtrToNode[Child + 1].Dist < H->PtrToNode[Child].Dist)
-			Child++;
-		if (LastDist > H->PtrToNode[Child].Dist)
-		{
-			H->PtrToNode[i].Dist = H->PtrToNode[Child].Dist;
-			H->PtrToNode[i].Elements = H->PtrToNode[Child].Elements;
-			H->PtrToNode[H->PtrToNode[Child].Elements].Position = i;
-		}
-		else
-			break;
-	}
-	H->PtrToNode[i].Dist = LastDist;
-	H->PtrToNode[i].Elements = LastElement;
-	H->PtrToNode[LastElement].Position = i;
-	return MinElement;
-}
-
-void Destroy(PriorityQueue H)
-{
-	free(H->PtrToNode);
-	free(H);
-}
-
-void DijkstraPriorityQueue(ElementType X, Table T, PtrToGraph G)
+//Prim算法生成最小生成树
+void Prim(Table T, PtrToGraph G)
 {
 	ElementType V;
 	AdjacentList Tmp;
 	PriorityQueue H;
 	int* Inqueue;
 
-	X--;
+	V = 0;
 	H = Initialize(G->VertexNum);
 	Inqueue = calloc(G->VertexNum, sizeof(int));
 	if (Inqueue == NULL)
-	{
 		Error("Out of space!");
-	}
 	for (int i = 0; i < G->VertexNum; i++)
 		Inqueue[i] = 0;
-	PriorityQueueInsert(T[X].Dist, X, H);
-	Inqueue[X] = 1;
+
+	PriorityQueueInsert(T, V, H);
+	Inqueue[V] = 1;
 	for (;;)
 	{
 		if (IsEmptyPriorityQueue(H))
 			break;
-		V = DeleteMin(H);
+		V = DeleteMin(T, H);
 		T[V].Known = 1;
 		Tmp = G->AdjGraph[V].Adjacent;
 		while (Tmp != NULL)
 		{
 			if (T[Tmp->Element].Known == 0)
 			{
-				if (T[V].Dist + Tmp->Weight < T[Tmp->Element].Dist)
+				if (Tmp->Weight < T[Tmp->Element].Dist)
 				{
+					T[Tmp->Element].Dist = Tmp->Weight;
 					if (Inqueue[Tmp->Element] == 0)
 					{
-						PriorityQueueInsert(T[V].Dist + Tmp->Weight, Tmp->Element, H);
+						PriorityQueueInsert(T, Tmp->Element, H);
 						Inqueue[Tmp->Element] = 1;
 					}
 					else
-						PriorityQueueDecreaseKey(Tmp->Element, T[V].Dist + Tmp->Weight, H);
-					T[Tmp->Element].Dist = T[V].Dist + Tmp->Weight;
+						PriorityQueueDecreaseKey(T, Tmp->Element, H);
 					T[Tmp->Element].Path = V + 1;
 				}
 			}
@@ -475,25 +422,83 @@ void DijkstraPriorityQueue(ElementType X, Table T, PtrToGraph G)
 	Destroy(H);
 }
 
-//打印路径
-void PrintPath(Table T, ElementType X)
+//不相交集合
+//初始化
+DisjointSet DisjointSetInitialize(int Size)
 {
-	X--;
-	if (T[X].Path != NotAVertex)
-	{
-		PrintPath(T, T[X].Path);
-		printf(" to ");
-	}
-	printf("%d", X + 1);
+	int i;
+	int* S;
+
+	S = calloc(Size + 1, sizeof(SetType));
+	if (S == NULL)
+		Error("Out of space!");
+	for (i = 0; i < Size + 1; i++)
+		S[i] = 0;
+
+	return S;
 }
 
-void PrintTable(Table T, int Size)
+//集合的并
+void SetUnion(DisjointSet S, SetType Root1, SetType Root2)
 {
-	printf("Known Dist  Path\n");
-	for (int i = 0; i < Size; i++)
+	if (S[Root2] < S[Root1])
+		S[Root1] = Root2;
+	else
 	{
-		printf("%6d%5.2f%4d\n", T[i].Known, T[i].Dist, T[i].Path);
+		if (S[Root2] == S[Root1])
+			S[Root1]--;
+		S[Root2] = Root1;
 	}
+}
+
+//返回元素X所在集合的根
+SetType Find(ElementType X, DisjointSet S)
+{
+	if (S[X] <= 0)
+		return X;
+	else
+		return S[X] = Find(S[X], S);
+}
+
+//Kruskal算法（无向图）
+void Kruskal(KruskalTable T, PtrToGraph G)
+{
+	int EdgeAccepted = 0, i;
+	DisjointSet S;
+	PriorityQueue H;
+	ElementType U;
+	SetType s1, s2;
+
+	S = DisjointSetInitialize(G->VertexNum);
+	H = Initialize((G->EdgeNum) / 2);
+	for (i = 0; i < (G->EdgeNum) / 2; i++)
+		PriorityQueueInsertK(T, (ElementType)i, H);
+
+	while (EdgeAccepted < G->VertexNum - 1)
+	{
+		U = DeleteMinK(T, H);
+		s1 = T[U].Point1 + 1;
+		s2 = T[U].Point2 + 1;
+		if (Find(s1, S) != Find(s2, S))
+		{
+			EdgeAccepted++;
+			SetUnion(S, Find(s1, S), Find(s2, S));
+			T[U].Known = 1;
+		}
+	}
+	Destroy(H);
+	free(S);
+}
+
+//层次打印树
+void PrintHeap(Table T, PriorityQueue H, int m, int i)
+{
+	int j;
+	if (2 * i + 1 <= H->Size) PrintHeap(T, H, m + 1, 2 * i + 1);
+	for (j = 1; j <= m; j++)
+		printf("     ");//打印 i 个空格以表示出层次
+	printf("节点=%2d, 距离=%5.2f\n", H->HeapPos[i], T[H->HeapPos[i]].Dist);//打印 H 元素,换行 
+	if (2 * i <= H->Size) PrintHeap(T, H, m + 1, 2 * i);
 }
 
 int main()
@@ -501,9 +506,9 @@ int main()
 {
 	PtrToGraph G;
 	int size = 7;
-	Table T, T1, T2;
+	Table T;
+	KruskalTable T1;
 	int i, N;
-	ElementType X;
 	int A[][3] = {
 		{1, 2, 2},
 		{1, 4, 1},
@@ -512,45 +517,33 @@ int main()
 		{3, 1, 4},
 		{3, 6, 5},
 		{4, 3, 2},
-		{4, 5, 2},
+		{4, 5, 7},
 		{4, 6, 8},
-		{4, 7, 4},
+		{4, 7, 4}, 
 		{5, 7, 6},
 		{7, 6, 1}
 	};
 
 	G = CreateGraph(size);
-
 	N = sizeof(A) / sizeof(A[0]);
 	for (i = 0; i < N; i++)
 	{
 		Insert(G, A[i][0] - 1, A[i][1] - 1, A[i][2]);
+		Insert(G, A[i][1] - 1, A[i][0] - 1, A[i][2]);
 	}
 	PrintGraph(G);
-	printf("无权重最短路径:\n");
-	X = 3;
-	T = InitTable(X, G);
-	Unweighted(X, T, G);
-	PrintPath(T, 1);
-	printf("\n");
+	 
+	//Prim算法
+	T = InitTable(1, G);
+	Prim(T, G);
 	PrintTable(T, size);
 	free(T);
-	printf("Dijkstra算法求最短路径:\n");
-	X = 1;
-	T1 = InitTable(X, G);
-	Dijkstra(X, T1, G);
-	PrintPath(T1, 3);
-	printf("\n");
-	PrintTable(T1, size);
+
+	//Kruskal算法
+	T1 = InitKruskalTable(G);
+	Kruskal(T1, G);
+	PrintKruskalTable(T1, N);
 	free(T1);
-	printf("优先队列优化的Dijkstra算法求最短路径:\n");
-	X = 1;
-	T2 = InitTable(X, G);
-	DijkstraPriorityQueue(X, T2, G);
-	PrintPath(T2, 3);
-	printf("\n");
-	PrintTable(T2, size);
-	free(T2);
 
 	DeleteGraph(G);
 	return 0;
