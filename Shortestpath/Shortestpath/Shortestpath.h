@@ -1,7 +1,7 @@
 #pragma once
 
 typedef int ElementType;
-typedef int DistType;
+typedef double DistType;
 typedef struct QueueRecord* Queue;
 typedef struct Node* Vertex;
 typedef struct Adjacent* AdjacentList;

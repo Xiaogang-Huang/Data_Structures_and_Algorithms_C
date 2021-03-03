@@ -183,7 +183,7 @@ void PrintGraph(PtrToGraph G)
 		Tmp = G->AdjGraph[i].Adjacent;
 		while (Tmp != NULL)
 		{
-			printf("%d(权重=%3d), ", Tmp->Element, Tmp->Weight);
+			printf("%d(权重=%5.2f), ", Tmp->Element, Tmp->Weight);
 			Tmp = Tmp->Next;
 		}
 		printf("\n");
@@ -503,7 +503,7 @@ void PrintTable(Table T, int Size)
 	printf("Known Dist  Path\n");
 	for (int i = 0; i < Size; i++)
 	{
-		printf("%6d%6d%4d\n", T[i].Known, T[i].Dist, T[i].Path);
+		printf("%6d%5.2f%4d\n", T[i].Known, T[i].Dist, T[i].Path);
 	}
 }
 
