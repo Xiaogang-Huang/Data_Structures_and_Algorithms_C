@@ -299,12 +299,16 @@ void Dijkstra(ElementType X, Table T, PtrToGraph G)
 }
 
 //Dijkstra算法_优先队列优化
+struct HeapNode {
+	ElementType Elements;
+	DistType Dist;
+	int Position;
+};
+
 struct HeapStruct {
 	int Capacity;
 	int Size;
-	ElementType* Elements;
-	DistType* Dist;
-	int* Position;
+	struct HeapNode* PtrToNode;
 };
 
 typedef struct HeapStruct* PriorityQueue;
@@ -330,22 +334,14 @@ PriorityQueue Initialize(int MaxElements)
 	if (H == NULL)
 		FatalError("Out of space!!!");
 
-	H->Elements = malloc(sizeof(ElementType) * (MaxElements + 1));
-	if (H->Elements == NULL)
-		FatalError("Out of space!!!");
-
-	H->Dist = malloc(sizeof(DistType) * (MaxElements + 1));
-	if (H->Dist == NULL)
-		FatalError("Out of space!!!");
-
-	H->Position = malloc(sizeof(DistType) * (MaxElements + 1));
-	if (H->Position == NULL)
+	H->PtrToNode = calloc(MaxElements + 1, sizeof(struct HeapNode));
+	if (H->PtrToNode == NULL)
 		FatalError("Out of space!!!");
 
 	H->Capacity = MaxElements;
 	H->Size = 0;
-	H->Elements[0] = MinData;
-	H->Dist[0] = MinData;
+	H->PtrToNode[0].Elements = MinData;
+	H->PtrToNode[0].Dist = MinData;
 
 	return H;
 }
@@ -360,15 +356,15 @@ void PriorityQueueInsert(DistType X, ElementType Y, PriorityQueue H)
 		return;
 	}
 	//从堆尾向前查找元素插入的位置
-	for (i = ++H->Size; H->Dist[i / 2] > X; i /= 2)
+	for (i = ++H->Size; H->PtrToNode[i / 2].Dist > X; i /= 2)
 	{
-		H->Dist[i] = H->Dist[i / 2];
-		H->Elements[i] = H->Elements[i / 2];
-		H->Position[H->Elements[i / 2]] = i;
+		H->PtrToNode[i].Dist = H->PtrToNode[i / 2].Dist;
+		H->PtrToNode[i].Elements = H->PtrToNode[i / 2].Elements;
+		H->PtrToNode[H->PtrToNode[i / 2].Elements].Position = i;
 	}
-	H->Dist[i] = X;
-	H->Elements[i] = Y;
-	H->Position[Y] = i;
+	H->PtrToNode[i].Dist = X;
+	H->PtrToNode[i].Elements = Y;
+	H->PtrToNode[Y].Position = i;
 }
 
 //层次打印树
@@ -378,7 +374,7 @@ void PrintHeap(PriorityQueue H, int m, int i)
 	if (2 * i + 1 <= H->Size) PrintHeap(H, m + 1, 2 * i + 1);
 	for (j = 1; j <= m; j++)
 		printf("     ");//打印 i 个空格以表示出层次
-	printf("节点=%2d, 距离=%3d\n", H->Elements[i], H->Dist[i]);//打印 H 元素,换行 
+	printf("节点=%2d, 距离=%3d\n", H->PtrToNode[i].Elements, H->PtrToNode[i].Dist);//打印 H 元素,换行 
 	if (2 * i <= H->Size) PrintHeap(H, m + 1, 2 * i);
 }
 
@@ -386,16 +382,16 @@ void PriorityQueueDecreaseKey(ElementType Y, DistType NewX, PriorityQueue H)
 {
 	int i = 1, j;
 
-	i = H->Position[Y];
-	for (j = i; H->Dist[j / 2] > NewX; j /= 2)
+	i = H->PtrToNode[Y].Position;
+	for (j = i; H->PtrToNode[j / 2].Dist > NewX; j /= 2)
 	{
-		H->Dist[j] = H->Dist[j / 2];
-		H->Elements[j] = H->Elements[j / 2];
-		H->Position[H->Elements[j / 2]] = j;
+		H->PtrToNode[j].Dist = H->PtrToNode[j / 2].Dist;
+		H->PtrToNode[j].Elements = H->PtrToNode[j / 2].Elements;
+		H->PtrToNode[H->PtrToNode[j / 2].Elements].Position = j;
 	}
-	H->Dist[j] = NewX;
-	H->Elements[j] = Y;
-	H->Position[Y] = i;
+	H->PtrToNode[j].Dist = NewX;
+	H->PtrToNode[j].Elements = Y;
+	H->PtrToNode[Y].Position = i;
 }
 
 ElementType DeleteMin(PriorityQueue H)
@@ -407,39 +403,37 @@ ElementType DeleteMin(PriorityQueue H)
 	if (IsEmptyPriorityQueue(H))
 	{
 		Error("Priority queue is empty!!!");
-		return H->Elements[0];
+		return H->PtrToNode[0].Elements;
 	}
-	MinElement = H->Elements[1];
-	LastDist = H->Dist[H->Size];
-	LastElement = H->Elements[H->Size];
-	LastPosition = H->Position[LastElement];
+	MinElement = H->PtrToNode[1].Elements;
+	LastDist = H->PtrToNode[H->Size].Dist;
+	LastElement = H->PtrToNode[H->Size].Elements;
+	LastPosition = H->PtrToNode[LastElement].Position;
 	H->Size--;
 
 	for (i = 1; i * 2 <= H->Size; i = Child)
 	{
 		Child = i * 2;
-		if (Child != H->Size && H->Dist[Child + 1] < H->Dist[Child])
+		if (Child != H->Size && H->PtrToNode[Child + 1].Dist < H->PtrToNode[Child].Dist)
 			Child++;
-		if (LastDist > H->Dist[Child])
+		if (LastDist > H->PtrToNode[Child].Dist)
 		{
-			H->Dist[i] = H->Dist[Child];
-			H->Elements[i] = H->Elements[Child];
-			H->Position[H->Elements[Child]] = i;
+			H->PtrToNode[i].Dist = H->PtrToNode[Child].Dist;
+			H->PtrToNode[i].Elements = H->PtrToNode[Child].Elements;
+			H->PtrToNode[H->PtrToNode[Child].Elements].Position = i;
 		}
 		else
 			break;
 	}
-	H->Dist[i] = LastDist;
-	H->Elements[i] = LastElement;
-	H->Position[LastElement] = i;
+	H->PtrToNode[i].Dist = LastDist;
+	H->PtrToNode[i].Elements = LastElement;
+	H->PtrToNode[LastElement].Position = i;
 	return MinElement;
 }
 
 void Destroy(PriorityQueue H)
 {
-	free(H->Elements);
-	free(H->Dist);
-	free(H->Position);
+	free(H->PtrToNode);
 	free(H);
 }
 
