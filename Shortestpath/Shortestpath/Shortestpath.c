@@ -311,8 +311,6 @@ struct HeapStruct {
 	struct HeapNode* PtrToNode;
 };
 
-typedef struct HeapStruct* PriorityQueue;
-
 int IsFullPriorityQueue(PriorityQueue H)
 {
 	return H->Size == H->Capacity;
@@ -365,17 +363,6 @@ void PriorityQueueInsert(DistType X, ElementType Y, PriorityQueue H)
 	H->PtrToNode[i].Dist = X;
 	H->PtrToNode[i].Elements = Y;
 	H->PtrToNode[Y].Position = i;
-}
-
-//层次打印树
-void PrintHeap(PriorityQueue H, int m, int i)
-{
-	int j;
-	if (2 * i + 1 <= H->Size) PrintHeap(H, m + 1, 2 * i + 1);
-	for (j = 1; j <= m; j++)
-		printf("     ");//打印 i 个空格以表示出层次
-	printf("节点=%2d, 距离=%3d\n", H->PtrToNode[i].Elements, H->PtrToNode[i].Dist);//打印 H 元素,换行 
-	if (2 * i <= H->Size) PrintHeap(H, m + 1, 2 * i);
 }
 
 void PriorityQueueDecreaseKey(ElementType Y, DistType NewX, PriorityQueue H)
@@ -484,6 +471,17 @@ void DijkstraPriorityQueue(ElementType X, Table T, PtrToGraph G)
 	}
 	free(Inqueue);
 	Destroy(H);
+}
+
+//层次打印树
+void PrintHeap(PriorityQueue H, int m, int i)
+{
+	int j;
+	if (2 * i + 1 <= H->Size) PrintHeap(H, m + 1, 2 * i + 1);
+	for (j = 1; j <= m; j++)
+		printf("     ");//打印 i 个空格以表示出层次
+	printf("节点=%2d, 距离=%5.2f\n", H->PtrToNode[i].Elements, H->PtrToNode[i].Dist);//打印 H 元素,换行 
+	if (2 * i <= H->Size) PrintHeap(H, m + 1, 2 * i);
 }
 
 //打印路径
