@@ -4,7 +4,7 @@
 
 #define FatalError( Str )   fprintf( stderr, "%s\n", Str ), exit( 1 )
 
-int* RaidxSort(int A[], int N)
+void RaidxSort(int A[], int N)
 {
 	int Max, Min, i, M;
 	int* Count;
@@ -24,7 +24,7 @@ int* RaidxSort(int A[], int N)
 	if (Count == NULL)
 		FatalError("Out of space!!!");
 	for (i = 0; i < M; i++)
-		Count[i] = (int)0;
+		Count[i] = 0;
 
 	Tmp = malloc(N * sizeof(int));
 	if (Tmp == NULL)
